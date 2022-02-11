@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+# 
+# OBJECT DETECTION REALSENSE
+#	Author: Muhammad Irsyad Sahalan
+#	Date : 10/02/2022
+#	Descripton :
+# 	license
+# 
+import rospy
+from std_msgs.msg import String
+from sensor_msgs.msg import Image
+
+def colorRawImgCallback(data):
+    global image_raw
+    image_raw = data
+
+def realsense():
+    rospy.Subscriber("/camera/color/image_raw", Image, colorRawImgCallback)
+    description_output_pub = rospy.Publisher('description_output', String, queue_size=5)
+    camera_output_pub = rospy.Publisher('detection_output', Image, queue_size=5)
+    
+    rospy.init_node('realsense', anonymous=True)
+    rate = rospy.Rate(60) # 60hz
+
+    rospy.loginfo("RealSense begins")
+    while not rospy.is_shutdown():
+        #input image
+        #process jetson inference
+        #output image
+
+        hello_str = "bismillah"
+        description_output_pub.publish(hello_str)
+        camera_output_pub.publish(image_raw)
+        rate.sleep()
+
+if __name__ == '__main__':
+    try:
+        realsense()
+    except rospy.ROSInterruptException:
+        pass

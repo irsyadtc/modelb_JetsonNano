@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+# 
+# OBJECT DETECTION REALSENSE
+#	Author: Muhammad Irsyad Sahalan
+#	Date : 10/02/2022
+#	Descripton :
+# 	license
+# 
+import rospy
+from std_msgs.msg import String
+from sensor_msgs.msg import Image
+import jetson.inference
+import jetson.utils
+import pyrealsense2.pyrealsense2 as rs
+import numpy as np
+
+net = jetson.inference.detectNet("ssd-mobilenet-v2", threshold=0.5)
+##camera = jetson.utils.videoSource("/dev/video0")
+display = jetson.utils.videoOutput()
+
+#Create a context object. This object owns the handles to all connected realsense devices
+pipeline = rs.pipeline()
+config = rs.config()
+config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+
+# Start streaming
+pipeline.start(config)
+
+def colorRawImgCallback(data):
+    global image_raw
+    image_raw = data
+
+def realsense():
+    rospy.Subscriber("/camera/color/image_raw", Image, colorRawImgCallback)
+    description_output_pub = rospy.Publisher('description_output', String, queue_size=5)
+    camera_output_pub = rospy.Publisher('detection_output', Image, queue_size=5)
+    
+    rospy.init_node('realsense', anonymous=True)
+    rate = rospy.Rate(60) # 60hz
+
+    rospy.loginfo("RealSense begins")
+    while not rospy.is_shutdown():
+        #input image
+        frames = pipeline.wait_for_frames()
+        color_frame = frames.get_color_frame()
+        #process jetson inference
+        color_image = np.asanyarray(color_frame.get_data())
+        color_cuda = jetson.utils.cudaFromNumpy(color_image)
+        if color_image.any():
+            img = color_cuda
+            detections = net.Detect(img)
+            display.Render(img)				#show img in a window
+            display.SetStatus("Object Detection | Network {:.0f} FPS".format(net.GetNetworkFPS()))
+        
+        #output image
+
+        hello_str = "bismillah"
+        description_output_pub.publish(hello_str)
+        #camera_output_pub.publish(image_raw)
+        rate.sleep()
+
+if __name__ == '__main__':
+    try:
+        realsense()
+    except rospy.ROSInterruptException:
+        pass
